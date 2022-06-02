@@ -1,6 +1,8 @@
 export const TOKEN_STORAGE_KEY = "tweet-bot-token";
 
-export default function AuthenticationService(API_URL) {
+export default function AuthenticationService() {
+    const API_URL = import.meta.env.VITE_API_URL;
+
     return {
         async authenticate(credentials) {
             const response = await fetch(`${API_URL}/auth`, {
