@@ -7,6 +7,19 @@ const REQUEST_TOKEN_URL = 'https://api.twitter.com/oauth/request_token?oauth_cal
 const CREATE_TWEET_URL = 'https://api.twitter.com/2/tweets';
 const ACCESS_TOKEN_URL = 'https://api.twitter.com/oauth/access_token';
 
+export default function twitterService({ consumer_key, consumer_secret }) {
+    const oauth = instanceTwitterOauth({
+        consumer_key,
+        consumer_secret
+    });
+
+    return {
+        async getAuthorizationUrl() {},
+        async getAccessToken(pin) {},
+        async createTweet(tweet) {}
+    }
+}
+
 async function requestAuthorizationURL(oauth) {
     const authHeader = oauth.toHeader(oauth.authorize({
         url: REQUEST_TOKEN_URL,
