@@ -1,144 +1,103 @@
 import got from "got";
-import crypto from "crypto";
-import OAuth from 'oauth-1.0a';
-import { paramsUrlToObjects, readLineFromConsole } from "../utils/index.js";
+import { paramsUrlToObjects } from "../utils/index.js";
+import twitterController, {
+    REQUEST_TOKEN_URL,
+    ACCESS_TOKEN_URL,
+} from "../controllers/twitter.controller.js";
 
-const REQUEST_TOKEN_URL = 'https://api.twitter.com/oauth/request_token?oauth_callback=oob&x_auth_access_type=write';
-const CREATE_TWEET_URL = 'https://api.twitter.com/2/tweets';
-const ACCESS_TOKEN_URL = 'https://api.twitter.com/oauth/access_token';
+export default function twitterService(repositories = {}) {
+    const twitter = twitterController();
+    return ({
+        TWITTER_CONSUMER_KEY,
+        TWITTER_CONSUMER_SECRET,
+    }) => {
+        const {
+            tweetsRepository,
+            usersRepository,
+        } = repositories;
 
-export default function twitterService({ consumer_key, consumer_secret }) {
-    const oauth = instanceTwitterOauth({
-        consumer_key,
-        consumer_secret
-    });
+        const oauth = twitter.instanceTwitterOauth({
+            consumer_key: TWITTER_CONSUMER_KEY,
+            consumer_secret: TWITTER_CONSUMER_SECRET,
+        });
 
-    return {
-        async getAuthorizationUrl() {},
-        async getAccessToken(pin) {},
-        async createTweet(tweet) {}
-    }
-}
+        return {
+            async createTweet(user_id, text) {
+                const user = await usersRepository.findOne({ _id: user_id });
+                if (!user) throw new Error("User not found");
+                const tweet = await tweetsRepository.create({
+                    user_id: user._id,
+                    text,
+                    posted: false,
+                });
 
-async function requestAuthorizationURL(oauth) {
-    const authHeader = oauth.toHeader(oauth.authorize({
-        url: REQUEST_TOKEN_URL,
-        method: 'POST'
-    }));
+                return tweet;
+            },
+            async requestAuthorization() {
+                const authHeader = oauth.toHeader(oauth.authorize({
+                    url: REQUEST_TOKEN_URL,
+                    method: 'POST'
+                }));
 
-    const req = await got.post(REQUEST_TOKEN_URL, {
-        headers: {
-            Authorization: authHeader["Authorization"]
-        }
-    });
+                const req = await got.post(REQUEST_TOKEN_URL, {
+                    headers: {
+                        Authorization: authHeader["Authorization"]
+                    }
+                });
 
-    const {
-        oauth_token,
-        oauth_token_secret,
-    } = paramsUrlToObjects(req.body);
+                const { oauth_token } = paramsUrlToObjects(req.body);
 
-    const authorizeURL = new URL('https://api.twitter.com/oauth/authorize');
-    authorizeURL.searchParams.set('oauth_token', oauth_token);
-
-    return {
-        oauth_token,
-        oauth_token_secret,
-        authorizeURL,
-    };
-}
-
-function instanceTwitterOauth({ consumer_key, consumer_secret }) {
-    return OAuth({
-        consumer: {
-            key: consumer_key,
-            secret: consumer_secret
-        },
-        signature_method: 'HMAC-SHA1',
-        hash_function: (baseString, key) => crypto.createHmac('sha1', key).update(baseString).digest('base64')
-    });
-}
-
-async function requestAccessToken(pin, { oauth_token }, oauth) {
-    const { Authorization } = oauth.toHeader(oauth.authorize({
-        url: ACCESS_TOKEN_URL,
-        method: 'POST'
-    }));
-    const req = await got.post(
-        `https://api.twitter.com/oauth/access_token?oauth_verifier=${pin}&oauth_token=${oauth_token}`,
-        { headers: { Authorization } },
-    );
-
-    const accessToken = paramsUrlToObjects(req.body);
-
-    return {
-        oauth_token: accessToken.oauth_token,
-        oauth_token_secret: accessToken.oauth_token_secret,
-    }
-}
-
-
-function authorizeEndpoint(url, { oauth_token, oauth_token_secret }, oauth) {
-    const token = {
-        key: oauth_token,
-        secret: oauth_token_secret
-    };
-
-    const authHeader = oauth.toHeader(oauth.authorize({
-        url,
-        method: 'POST'
-    }, token));
-
-    return authHeader["Authorization"];
-}
-
-export default function tweets({ TWITTER_CONSUMER_KEY, TWITTER_CONSUMER_SECRET }) {
-    return {
-        async authenticate() {
-            const oauth = instanceTwitterOauth({
-                consumer_key: TWITTER_CONSUMER_KEY,
-                consumer_secret: TWITTER_CONSUMER_SECRET,
-            });
-
-            const {
-                authorizeURL,
-                ...authorizationTokens
-            } = await requestAuthorizationURL(oauth);
-
-            console.log(` Authorize your application here: ${authorizeURL}`);
-            const pin = await readLineFromConsole(
-                "Enter the PIN from the browser: "
-            );
-
-            const {
-                oauth_token,
-                oauth_token_secret,
-            } = await requestAccessToken(pin, authorizationTokens, oauth);
-
-            const authorization = authorizeEndpoint(
-                CREATE_TWEET_URL,
-                { 
+                const authorizationUrl = twitter.getAuthorizationUrl({
                     oauth_token,
-                    oauth_token_secret,
-                },
-                oauth,
-            );
+                });
 
-            return {
-                async createTweet(tweet) {
-                    const response = await got.post(CREATE_TWEET_URL, {
-                        json: tweet,
-                        responseType: 'json',
-                        headers: {
-                            Authorization: authorization,
-                            'user-agent': "v2CreateTweetJS",
-                            'content-type': "application/json",
-                            'accept': "application/json"
-                        }
-                    });
+                return { authorizationUrl, oauth_token };
+            },
+            async requestAccessToken(oauth_token, otp_token) {
+                const { Authorization } = oauth.toHeader(oauth.authorize({
+                    url: ACCESS_TOKEN_URL,
+                    method: 'POST'
+                }));
+                const req = await got.post(
+                    `https://api.twitter.com/oauth/access_token?oauth_verifier=${otp_token}&oauth_token=${oauth_token}`,
+                    { headers: { Authorization } },
+                );
+            
+                const accessToken = paramsUrlToObjects(req.body);
 
-                    return response.body;
-                }
-            }
+                const token = {
+                    key: accessToken.oauth_token,
+                    secret: accessToken.oauth_token_secret
+                };
+            
+                const authHeader = oauth.toHeader(oauth.authorize({
+                    url,
+                    method: 'POST'
+                }, token));
+            
+                return authHeader["Authorization"];
+            },
+            async getTweets(user_id) {
+                const user = await usersRepository.findOne({ _id: user_id });
+                if (!user) throw new Error("User not found");
+                const tweets = await tweetsRepository.find({ user_id });
+                return tweets;
+            },
         }
     }
 }
+
+// async createTweet(tweet) {
+//     const response = await got.post(CREATE_TWEET_URL, {
+//         json: tweet,
+//         responseType: 'json',
+//         headers: {
+//             Authorization: authorization,
+//             'user-agent': "v2CreateTweetJS",
+//             'content-type': "application/json",
+//             'accept': "application/json"
+//         }
+//     });
+
+//     return response.body;
+// }
