@@ -17,13 +17,4 @@ const userSchema = new mongoose.Schema({
     }
 }, { timestamps: true, collection: 'users' });
 
-
-userSchema.methods.encryptPassword = function(password) {
-    return bcrypt.hashSync(password, bcrypt.genSaltSync(10));
-}
-
-userSchema.methods.validatePassword = function(password) {
-    return bcrypt.compareSync(password, this.password);
-}
-
 export default mongoose.model('users', userSchema);
