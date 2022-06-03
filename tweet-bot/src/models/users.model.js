@@ -5,13 +5,17 @@ const userSchema = new mongoose.Schema({
     email: {
         type: String,
         required: true,
-        unique: true
+        unique: true,
     },
     password: {
         type: String,
         required: true,
+    },
+    tweet_token: {
+        type: String,
+        default: null,
     }
-}, { timestamps: true, collection: 'user' });
+}, { timestamps: true, collection: 'users' });
 
 
 userSchema.methods.encryptPassword = function(password) {
@@ -22,4 +26,4 @@ userSchema.methods.validatePassword = function(password) {
     return bcrypt.compareSync(password, this.password);
 }
 
-export default mongoose.model('user', userSchema);
+export default mongoose.model('users', userSchema);
