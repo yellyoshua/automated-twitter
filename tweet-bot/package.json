@@ -25,6 +25,7 @@
     "dotenv": "^16.0.1",
     "express": "^4.18.1",
     "got": "^12.1.0",
+    "jsonwebtoken": "^8.5.1",
     "mongoose": "^6.3.5",
     "node-cron": "^3.0.0",
     "oauth-1.0a": "^2.2.6"
