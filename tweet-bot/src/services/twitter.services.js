@@ -5,7 +5,7 @@ import twitterController, {
     ACCESS_TOKEN_URL,
 } from "../controllers/twitter.controller.js";
 
-export default function twitterService(repositories = {}) {
+export default function twitterService(repositories = {}, envs) {
     const twitter = twitterController();
     return ({
         TWITTER_CONSUMER_KEY,
