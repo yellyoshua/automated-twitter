@@ -1,15 +1,20 @@
-export default function sessionMiddleware({ services }) {
+export default function sessionMiddleware({ services = {} }) {
+    const {
+        sessionServices,
+    } = services;
     return async (req, res, next) => {
-        const accessToken = req.headers.Authorization;
-        if (!accessToken) {
+        const bearerToken = req.headers.Authorization;
+        if (!bearerToken) {
             return res.status(401).json({
                 error: 'Unauthorized'
             });
         }
 
-        const session = await services.session.findOne({
-            accessToken
-        });
+        const [, accessToken] = bearerToken.split(" ");
+
+        const session = await sessionServices.accessToken(
+            accessToken,
+        );
 
         if (!session) {
             return res.status(401).json({

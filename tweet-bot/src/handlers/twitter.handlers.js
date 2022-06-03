@@ -1,20 +1,23 @@
 import express from "express";
 
-export default function twitterHandler({ services }) {
+export default function twitterHandler({ services = {} }) {
+    const {
+        twitterService,
+        sessionServices,
+    } = services;
     return {
-        async sendAuthoizationUrl(req = express.request, res = express.response) {
-            const authorizationUrl = await services.twitter.getAuthorizationUrl();
-            return res.json({ authorizationUrl }).status(200);
+        async createNewTweet(req, res) {
+            const {
+                text,
+            } = req.body;
+            const {
+                user_id,
+            } = req.session;
+            const tweet = await twitterService.createTweet(user_id, text);
+            res.json(tweet);
         },
-        async receiveOauthCode(req = express.request, res = express.response) {
-            const { code } = req.body;
-            const currentSession = req.session;
-            const tweetToken = await services.twitter.getAccessToken(code);
-            const session = await services.session.update({
-                _id: currentSession._id,
-            },{ tweetToken });
-
-            return res.json(session).status(200);
-        }
+        async requestTwitterAuthorization(req, res) {},
+        async requestTwitterAccessToken(req, res) {},
+        async requestTweets(req, res) {},
     };
-}
+};

@@ -7,83 +7,84 @@ import twitterController, {
 
 export default function twitterService(repositories = {}, envs) {
     const twitter = twitterController();
-    return ({
+
+    const {
         TWITTER_CONSUMER_KEY,
         TWITTER_CONSUMER_SECRET,
-    }) => {
-        const {
-            tweetsRepository,
-            usersRepository,
-        } = repositories;
+    } = envs;
 
-        const oauth = twitter.instanceTwitterOauth({
-            consumer_key: TWITTER_CONSUMER_KEY,
-            consumer_secret: TWITTER_CONSUMER_SECRET,
-        });
+    const {
+        tweetsRepository,
+        usersRepository,
+    } = repositories;
 
-        return {
-            async createTweet(user_id, text) {
-                const user = await usersRepository.findOne({ _id: user_id });
-                if (!user) throw new Error("User not found");
-                const tweet = await tweetsRepository.create({
-                    user_id: user._id,
-                    text,
-                    posted: false,
-                });
+    const oauth = twitter.instanceTwitterOauth({
+        consumer_key: TWITTER_CONSUMER_KEY,
+        consumer_secret: TWITTER_CONSUMER_SECRET,
+    });
 
-                return tweet;
-            },
-            async requestAuthorization() {
-                const authHeader = oauth.toHeader(oauth.authorize({
-                    url: REQUEST_TOKEN_URL,
-                    method: 'POST'
-                }));
+    return {
+        async createTweet(user_id, text) {
+            const user = await usersRepository.findOne({ _id: user_id });
+            if (!user) throw new Error("User not found");
+            const tweet = await tweetsRepository.create({
+                user_id: user._id,
+                text,
+                posted: false,
+            });
 
-                const req = await got.post(REQUEST_TOKEN_URL, {
-                    headers: {
-                        Authorization: authHeader["Authorization"]
-                    }
-                });
+            return tweet;
+        },
+        async requestAuthorization() {
+            const authHeader = oauth.toHeader(oauth.authorize({
+                url: REQUEST_TOKEN_URL,
+                method: 'POST'
+            }));
 
-                const { oauth_token } = paramsUrlToObjects(req.body);
+            const req = await got.post(REQUEST_TOKEN_URL, {
+                headers: {
+                    Authorization: authHeader["Authorization"]
+                }
+            });
 
-                const authorizationUrl = twitter.getAuthorizationUrl({
-                    oauth_token,
-                });
+            const { oauth_token } = paramsUrlToObjects(req.body);
 
-                return { authorizationUrl, oauth_token };
-            },
-            async requestAccessToken(oauth_token, otp_token) {
-                const { Authorization } = oauth.toHeader(oauth.authorize({
-                    url: ACCESS_TOKEN_URL,
-                    method: 'POST'
-                }));
-                const req = await got.post(
-                    `https://api.twitter.com/oauth/access_token?oauth_verifier=${otp_token}&oauth_token=${oauth_token}`,
-                    { headers: { Authorization } },
-                );
-            
-                const accessToken = paramsUrlToObjects(req.body);
+            const authorizationUrl = twitter.getAuthorizationUrl({
+                oauth_token,
+            });
 
-                const token = {
-                    key: accessToken.oauth_token,
-                    secret: accessToken.oauth_token_secret
-                };
-            
-                const authHeader = oauth.toHeader(oauth.authorize({
-                    url,
-                    method: 'POST'
-                }, token));
-            
-                return authHeader["Authorization"];
-            },
-            async getTweets(user_id) {
-                const user = await usersRepository.findOne({ _id: user_id });
-                if (!user) throw new Error("User not found");
-                const tweets = await tweetsRepository.find({ user_id });
-                return tweets;
-            },
-        }
+            return { authorizationUrl, oauth_token };
+        },
+        async requestAccessToken(oauth_token, otp_token) {
+            const { Authorization } = oauth.toHeader(oauth.authorize({
+                url: ACCESS_TOKEN_URL,
+                method: 'POST'
+            }));
+            const req = await got.post(
+                `https://api.twitter.com/oauth/access_token?oauth_verifier=${otp_token}&oauth_token=${oauth_token}`,
+                { headers: { Authorization } },
+            );
+        
+            const accessToken = paramsUrlToObjects(req.body);
+
+            const token = {
+                key: accessToken.oauth_token,
+                secret: accessToken.oauth_token_secret
+            };
+        
+            const authHeader = oauth.toHeader(oauth.authorize({
+                url,
+                method: 'POST'
+            }, token));
+        
+            return authHeader["Authorization"];
+        },
+        async getTweets(user_id) {
+            const user = await usersRepository.findOne({ _id: user_id });
+            if (!user) throw new Error("User not found");
+            const tweets = await tweetsRepository.find({ user_id });
+            return tweets;
+        },
     }
 }
 

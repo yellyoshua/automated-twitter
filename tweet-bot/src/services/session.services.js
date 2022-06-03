@@ -1,5 +1,5 @@
-import bcryptController from "../controllers/bcrypt.controller";
-import jwtController from "../controllers/jwt.controller";
+import bcryptController from "../controllers/bcrypt.controller.js";
+import jwtController from "../controllers/jwt.controller.js";
 
 export default function sessionServices(repositories = {}, envs) {
     const {
